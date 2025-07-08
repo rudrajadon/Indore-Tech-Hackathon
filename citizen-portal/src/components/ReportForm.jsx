@@ -8,6 +8,7 @@ import Alert from "@mui/material/Alert";
 import MapPicker from "./MapPicker";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import CancelIcon from "@mui/icons-material/Cancel";
+import axios from 'axios';
 
 export default function ReportForm({ onSubmit, onCancel }) {
   const [desc, setDesc] = useState("");
@@ -25,22 +26,39 @@ export default function ReportForm({ onSubmit, onCancel }) {
     setLocation(loc);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!desc || !address || !location || !photo) {
       setError("Please fill all fields and upload a photo.");
       return;
     }
-    const newReport = {
-      id: Date.now().toString(),
-      description: desc,
-      address,
-      location, // now an object: { lat, lng }
-      photoUrl: URL.createObjectURL(photo),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-    onSubmit(newReport);
+    setError("");
+    const formData = new FormData();
+    formData.append('description', desc);
+    formData.append('address', address);
+    formData.append('location', JSON.stringify(location));
+    formData.append('photo', photo);
+    try {
+      const token = localStorage.getItem('token');
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+      const res = await axios.post(
+        BACKEND_URL + '/api/reports',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      setDesc("");
+      setAddress("");
+      setLocation(null);
+      setPhoto(null);
+      if (onSubmit) onSubmit(res.data.report);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit report');
+    }
   }
 
   return (

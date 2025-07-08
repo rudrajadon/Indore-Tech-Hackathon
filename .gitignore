@@ -3,3 +3,8 @@ node_modules/
 dist/
 .env
 .vite/
+
+# Ignore env files and uploads in subfolders
+citizen-portal/.env
+server/.env
+server/uploads/

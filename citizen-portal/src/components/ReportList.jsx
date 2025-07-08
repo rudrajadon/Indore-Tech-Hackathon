@@ -1,6 +1,7 @@
 import React from "react";
 
 export default function ReportList({ reports, onFeedback, onBack }) {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   return (
     <div style={{ padding: 24 }}>
       <h2 style={{ color: "#1565c0", marginBottom: 18 }}>My Reports</h2>
@@ -11,8 +12,8 @@ export default function ReportList({ reports, onFeedback, onBack }) {
         {reports.map((r) => {
           const [imgError, setImgError] = React.useState(false);
           const showImage =
-            typeof r.photoUrl === "string" &&
-            r.photoUrl.trim() !== "" &&
+            typeof r.photo === "string" &&
+            r.photo.trim() !== "" &&
             !imgError;
           return (
             <div
@@ -48,7 +49,7 @@ export default function ReportList({ reports, onFeedback, onBack }) {
               </div>
               {showImage ? (
                 <img
-                  src={r.photoUrl}
+                  src={BACKEND_URL + r.photo}
                   alt="Report"
                   style={{
                     maxWidth: 120,
@@ -62,6 +63,11 @@ export default function ReportList({ reports, onFeedback, onBack }) {
                   onError={() => setImgError(true)}
                 />
               ) : null}
+              {r.adminRemarks && (
+                <div style={{ color: '#1976d2', fontSize: 14, marginTop: 6 }}>
+                  <b>Admin Remarks:</b> {r.adminRemarks}
+                </div>
+              )}
               <div style={{ marginTop: 10 }}>
                 <span
                   style={{
