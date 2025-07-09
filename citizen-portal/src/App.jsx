@@ -1,166 +1,238 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Home from "./components/Home";
 import ReportForm from "./components/ReportForm";
 import ReportList from "./components/ReportList";
 import FeedbackForm from "./components/FeedbackForm";
-import axios from 'axios';
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
+import axios from "axios";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import AdminDashboard from './components/AdminDashboard';
-import AuthForm from './components/AuthForm';
+import AdminDashboard from "./components/AdminDashboard";
+import AdminReportDetail from "./components/AdminReportDetail";
+import AuthForm from "./components/AuthForm";
+import Navbar from "./components/Navbar";
+import AdminLogin from "./components/AdminLogin";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  BrowserRouter as Router,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
-export default function App() {
-  const [view, setView] = useState("home");
+function App() {
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [userRole, setUserRole] = useState(localStorage.getItem('role'));
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [userRole, setUserRole] = useState(localStorage.getItem("role"));
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("token")
+  );
+  const [selectedLogin, setSelectedLogin] = useState("userLogin");
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   async function fetchReports() {
     setLoading(true);
     setError("");
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/reports/my', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        import.meta.env.VITE_BACKEND_URL + "/api/reports/my",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setReports(res.data);
     } catch (err) {
-      setError('Failed to fetch reports');
+      setError("Failed to fetch reports");
     } finally {
       setLoading(false);
     }
   }
 
+  async function submitFeedback(reportId, feedback) {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.patch(
+        import.meta.env.VITE_BACKEND_URL + `/api/reports/${reportId}/feedback`,
+        { feedback },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setReports((prev) =>
+        prev.map((r) =>
+          (r._id || r.id) === reportId ? { ...r, feedback } : r
+        )
+      );
+      navigate("/reports");
+    } catch (err) {
+      setError("Failed to submit feedback");
+    }
+  }
+
   function handleReportSubmitted(newReport) {
-    setReports([newReport, ...reports]);
-    setView("reports");
+    setReports((prev) => [newReport, ...prev]);
+    navigate("/reports");
   }
 
   function handleGoHome() {
-    setView("home");
+    navigate("/");
   }
 
   function handleFeedback(report) {
     setSelectedReport(report);
-    setView("feedback");
-  }
-
-  function handleFeedbackSubmit(reportId, feedback) {
-    setReports(
-      reports.map((r) =>
-        r.id === reportId ? { ...r, feedback, status: "closed" } : r
-      )
-    );
-    setView("reports");
+    navigate("/feedback");
   }
 
   function handleAuth(role) {
     setIsAuthenticated(true);
     setUserRole(role);
-    setView(role === 'admin' ? 'admin' : 'reports');
+    if (role === "admin") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/");
+    }
   }
 
   function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
     setIsAuthenticated(false);
     setUserRole(null);
-    setView('home');
+    navigate("/");
   }
 
-  // Add a function to check if user is admin
   function isAdmin() {
-    return userRole === 'admin';
+    return userRole === "admin";
   }
 
-  React.useEffect(() => {
-    if (view === 'reports') {
+  useEffect(() => {
+    if (
+      location.pathname === "/reports" &&
+      isAuthenticated &&
+      !isAdmin()
+    ) {
       fetchReports();
     }
-  }, [view]);
+    // eslint-disable-next-line
+  }, [location.pathname, isAuthenticated, userRole]);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="primary" enableColorOnDark>
-        <Toolbar>
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ flexGrow: 1, cursor: "pointer" }}
-            onClick={handleGoHome}
-          >
-            Indore Smart Encroachment – Citizen Portal
-          </Typography>
-        </Toolbar>
-      </AppBar>
+      <Navbar
+        isAuthenticated={isAuthenticated}
+        onGoHome={handleGoHome}
+        onLogout={handleLogout}
+        isAdmin={isAdmin()}
+        onAdminDashboard={() => navigate("/admin/dashboard")}
+        selectedLogin={selectedLogin}
+        onLoginToggle={(val) => {
+          setSelectedLogin(val);
+          navigate("/");
+        }}
+      />
       <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
-        {!isAuthenticated ? (
-          <AuthForm onAuth={handleAuth} />
-        ) : (
-          <>
-            <Button variant="outlined" color="error" sx={{ mb: 2 }} onClick={handleLogout}>Logout</Button>
-            {view === "home" && (
-              <>
-                {isAdmin() ? (
-                  <div style={{ textAlign: "center", marginTop: 40 }}>
-                    <h2>Welcome, Admin!</h2>
-                    <p>
-                      Use the dashboard to review, verify, and manage all citizen reports of illegal construction.
-                    </p>
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      sx={{ mt: 2 }}
-                      onClick={() => setView('admin')}
-                    >
-                      Admin Dashboard
-                    </Button>
-                  </div>
-                ) : (
+        <Routes>
+          {/* Auth routes */}
+          {!isAuthenticated && (
+            <>
+              <Route
+                path="/"
+                element={
+                  selectedLogin === "userLogin" ? (
+                    <AuthForm onAuth={handleAuth} />
+                  ) : (
+                    <AdminLogin onAuth={handleAuth} />
+                  )
+                }
+              />
+              <Route path="*" element={<Navigate to="/" />} />
+            </>
+          )}
+
+          {/* Authenticated User Routes */}
+          {isAuthenticated && !isAdmin() && (
+            <>
+              <Route
+                path="/"
+                element={
                   <Home
-                    onReport={() => setView("report")}
-                    onTrack={() => setView("reports")}
+                    onReport={() => navigate("/report")}
+                    onTrack={() => navigate("/reports")}
                   />
-                )}
-              </>
-            )}
-            {view === "report" && (
-              <ReportForm
-                onSubmit={handleReportSubmitted}
-                onCancel={handleGoHome}
+                }
               />
-            )}
-            {view === "reports" && (
-              loading ? <div>Loading...</div> : error ? <div>{error}</div> :
-              <ReportList
-                reports={reports}
-                onFeedback={handleFeedback}
-                onBack={handleGoHome}
+              <Route
+                path="/report"
+                element={
+                  <ReportForm
+                    onSubmit={handleReportSubmitted}
+                    onCancel={handleGoHome}
+                  />
+                }
               />
-            )}
-            {view === "feedback" && (
-              <FeedbackForm
-                report={selectedReport}
-                onBack={() => setView("reports")}
-                onSubmit={handleFeedbackSubmit}
+              <Route
+                path="/reports"
+                element={
+                  loading ? (
+                    <div>Loading...</div>
+                  ) : error ? (
+                    <div>{error}</div>
+                  ) : (
+                    <ReportList
+                      reports={reports}
+                      onFeedback={handleFeedback}
+                      onBack={handleGoHome}
+                    />
+                  )
+                }
               />
-            )}
-            {view === "admin" && (
-              <AdminDashboard onBack={handleGoHome} />
-            )}
-          </>
-        )}
+              <Route
+                path="/feedback"
+                element={
+                  <FeedbackForm
+                    report={selectedReport}
+                    onBack={() => navigate("/reports")}
+                    onSubmit={submitFeedback}
+                  />
+                }
+              />
+              <Route path="*" element={<Navigate to="/" />} />
+            </>
+          )}
+
+          {/* Admin routes */}
+          {isAuthenticated && isAdmin() && (
+            <>
+              <Route
+                path="/admin/dashboard"
+                element={<AdminDashboard onBack={handleGoHome} />}
+              />
+              <Route
+                path="/admin/report/:id"
+                element={<AdminReportDetail />}
+              />
+              {/* Redirect any other route to dashboard */}
+              <Route path="*" element={<Navigate to="/admin/dashboard" />} />
+            </>
+          )}
+        </Routes>
       </Container>
-      <Box component="footer" sx={{ textAlign: "center", py: 2, color: "grey.600", bgcolor: "background.default" }}>
+      <Box
+        component="footer"
+        sx={{ textAlign: "center", py: 2, color: "grey.600" }}
+      >
         &copy; {new Date().getFullYear()} Indore Smart City
       </Box>
     </Box>
+  );
+}
+
+export default function AppWithRouter() {
+  return (
+    <Router>
+      <App />
+    </Router>
   );
 }

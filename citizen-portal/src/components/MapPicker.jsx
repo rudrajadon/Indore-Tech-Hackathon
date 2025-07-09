@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import RoomIcon from "@mui/icons-material/Room";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { useEffect } from "react";
 
 // Fix default marker icon import bug in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -29,6 +30,16 @@ function LocationMarker({ onPick }) {
   );
 }
 
+function FixMapSize() {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+  return null;
+}
+
 export default function MapPicker({ onPick }) {
   return (
     <Paper
@@ -50,6 +61,7 @@ export default function MapPicker({ onPick }) {
         style={{ height: 220, borderRadius: 8, marginTop: 4, width: "100%" }}
         scrollWheelZoom={true}
       >
+        <FixMapSize />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

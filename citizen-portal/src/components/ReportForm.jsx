@@ -21,7 +21,6 @@ export default function ReportForm({ onSubmit, onCancel }) {
     setPhoto(e.target.files[0]);
   }
 
-  // MapPicker should only update location (lat/lng), not address
   function handleMapPick(loc) {
     setLocation(loc);
   }

@@ -1,50 +1,48 @@
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
-const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const path = require('path');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
+const { authenticateJWT, requireAdmin } = require('../middleware/auth');
 
-// Multer setup
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads/'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'indore-reports',
+    allowed_formats: ['jpg', 'jpeg', 'png'],
+    public_id: (req, file) => Date.now() + '-' + file.originalname.replace(/\s/g, ''),
   },
 });
 const upload = multer({ storage });
 
-// JWT middleware
-function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-      if (err) return res.sendStatus(403);
-      req.user = user;
-      next();
-    });
-  } else {
-    res.sendStatus(401);
-  }
-}
+// ---------- User Routes ---------- //
 
-// User: submit report (with file upload)
+// Submit report (with photo)
 router.post('/', authenticateJWT, upload.single('photo'), reportController.createReport);
-// User: view own reports
-router.get('/my', authenticateJWT, reportController.getUserReports);
-// Admin: view all reports
-router.get('/', authenticateJWT, (req, res, next) => {
-  if (req.user.role !== 'admin') return res.sendStatus(403);
-  next();
-}, reportController.getAllReports);
-// Admin: update report status
-router.patch('/:reportId', authenticateJWT, (req, res, next) => {
-  if (req.user.role !== 'admin') return res.sendStatus(403);
-  next();
-}, reportController.updateReportStatus);
 
-module.exports = router; 
+// Get current user's own reports
+router.get('/my', authenticateJWT, reportController.getUserReports);
+
+// User: Submit feedback for own report
+router.patch('/:reportId/feedback', authenticateJWT, reportController.userFeedback);
+
+// ---------- Admin Routes ---------- //
+
+// Get all reports
+router.get('/', authenticateJWT, requireAdmin, reportController.getAllReports);
+
+// Get report by ID
+router.get('/:reportId', authenticateJWT, requireAdmin, reportController.getReportById);
+
+// Update report status or remarks
+router.patch('/:reportId', authenticateJWT, requireAdmin, reportController.updateReportStatus);
+
+module.exports = router;

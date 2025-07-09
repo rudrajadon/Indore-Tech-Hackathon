@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import FeedbackIcon from "@mui/icons-material/Feedback";
 import CancelIcon from "@mui/icons-material/Cancel";
 
@@ -14,7 +14,8 @@ export default function FeedbackForm({ report, onBack, onSubmit }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (feedback.trim()) {
-      onSubmit(report.id, feedback.trim());
+      onSubmit(report._id || report.id, feedback.trim());
+      setFeedback("");
     }
   }
 
